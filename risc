@@ -1,0 +1,110 @@
+module execute_cycle(
+    input clk, rst,
+    input RegWriteE, MemWriteE, ResultSrcE,  // Control signals for PE1
+    input RegWriteE_2, MemWriteE_2, ResultSrcE_2,  // Control signals for PE2
+    input [2:0] ALUControlE, ALUControlE_2,  // ALU operation for PE1 & PE2
+    input [31:0] RD1_E, RD2_E, RD1_2E, RD2_2E,  // Register values for both instructions
+    input [4:0] RD_E, RD_E_2,  // Destination registers for PE1 & PE2
+    input assign_PE1, assign_PE2,  // Control unit assigns PEs
+    input stall,  // Stall signal for RAW dependency
+    
+    output RegWriteM, MemWriteM, ResultSrcM,  // Outputs for PE1
+    output RegWriteM_2, MemWriteM_2, ResultSrcM_2,  // Outputs for PE2
+    output [4:0] RD_M, RD_M_2,  // Destination registers forwarded
+    output [31:0] ALU_ResultM_PE1, ALU_ResultM_PE2, WriteDataM_PE1, WriteDataM_PE2
+);
+
+    // Wires for ALU results
+    wire [31:0] ResultE_PE1, ResultE_PE2;
+
+    // PE1 ALU Execution
+    ALU PE1_ALU (
+        .A(RD1_E),
+        .B(RD2_E),
+        .Result(ResultE_PE1),
+        .ALUControl(ALUControlE),
+        .OverFlow(),
+        .Carry(),
+        .Zero(),
+        .Negative()
+    );
+
+    // PE2 ALU Execution
+    ALU PE2_ALU (
+        .A(RD1_2E),
+        .B(RD2_2E),
+        .Result(ResultE_PE2),
+        .ALUControl(ALUControlE_2),
+        .OverFlow(),
+        .Carry(),
+        .Zero(),
+        .Negative()
+    );
+
+    // Pipeline Registers for Storing PE1 Results
+    reg RegWriteE_r, MemWriteE_r, ResultSrcE_r;
+    reg [4:0] RD_E_r;
+    reg [31:0] ResultE_PE1_r, RD2_E_r;
+
+    // Pipeline Registers for Storing PE2 Results
+    reg RegWriteE_2_r, MemWriteE_2_r, ResultSrcE_2_r;
+    reg [4:0] RD_E_2_r;
+    reg [31:0] ResultE_PE2_r, RD2_2E_r;
+
+    always @(posedge clk or negedge rst) begin
+        if (!rst) begin
+            // Reset PE1
+            RegWriteE_r <= 0;
+            MemWriteE_r <= 0;
+            ResultSrcE_r <= 0;
+            RD_E_r <= 5'h00;
+            ResultE_PE1_r <= 32'h00000000;
+            RD2_E_r <= 32'h00000000;
+            
+            // Reset PE2
+            RegWriteE_2_r <= 0;
+            MemWriteE_2_r <= 0;
+            ResultSrcE_2_r <= 0;
+            RD_E_2_r <= 5'h00;
+            ResultE_PE2_r <= 32'h00000000;
+            RD2_2E_r <= 32'h00000000;
+        end 
+        else begin
+            if (!stall) begin  // Execute only if there's no stall
+                if (assign_PE1) begin
+                    RegWriteE_r <= RegWriteE;
+                    MemWriteE_r <= MemWriteE;
+                    ResultSrcE_r <= ResultSrcE;
+                    RD_E_r <= RD_E;
+                    ResultE_PE1_r <= ResultE_PE1;
+                    RD2_E_r <= RD2_E;
+                end
+                
+                if (assign_PE2) begin
+                    RegWriteE_2_r <= RegWriteE_2;
+                    MemWriteE_2_r <= MemWriteE_2;
+                    ResultSrcE_2_r <= ResultSrcE_2;
+                    RD_E_2_r <= RD_E_2;
+                    ResultE_PE2_r <= ResultE_PE2;
+                    RD2_2E_r <= RD2_2E;
+                end
+            end
+        end
+    end
+
+    // Outputs from Execute Stage
+    assign RegWriteM = RegWriteE_r;
+    assign MemWriteM = MemWriteE_r;
+    assign ResultSrcM = ResultSrcE_r;
+    assign RD_M = RD_E_r;
+    assign ALU_ResultM_PE1 = ResultE_PE1_r;
+    assign WriteDataM_PE1 = RD2_E_r;
+
+    assign RegWriteM_2 = RegWriteE_2_r;
+    assign MemWriteM_2 = MemWriteE_2_r;
+    assign ResultSrcM_2 = ResultSrcE_2_r;
+    assign RD_M_2 = RD_E_2_r;
+    assign ALU_ResultM_PE2 = ResultE_PE2_r;
+    assign WriteDataM_PE2 = RD2_2E_r;
+
+endmodule
