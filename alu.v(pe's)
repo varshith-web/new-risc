@@ -1,0 +1,49 @@
+module ALU_Dual_PE(
+    input [31:0] A1, B1, A2, B2,      // Inputs for PE1 and PE2
+    input [2:0] ALUControl1, ALUControl2, // ALU control signals for PE1 and PE2
+    output Carry1, Carry2,            // Carry flags for PE1 and PE2
+    output OverFlow1, OverFlow2,      // Overflow flags for PE1 and PE2
+    output Zero1, Zero2,              // Zero flags for PE1 and PE2
+    output Negative1, Negative2,      // Negative flags for PE1 and PE2
+    output [31:0] Result1, Result2    // ALU results for PE1 and PE2
+);
+
+    // Internal wires for addition results and carry out
+    wire Cout1, Cout2;
+    wire [31:0] Sum1, Sum2;
+
+    // ALU Operation for PE1
+    assign Sum1 = (ALUControl1[0] == 1'b0) ? A1 + B1 : (A1 + ((~B1) + 1));
+    assign {Cout1, Result1} = (ALUControl1 == 3'b000) ? Sum1 :
+                              (ALUControl1 == 3'b001) ? Sum1 :
+                              (ALUControl1 == 3'b010) ? A1 & B1 :
+                              (ALUControl1 == 3'b011) ? A1 | B1 :
+                              (ALUControl1 == 3'b100) ? A1 ^ B1 :
+                              (ALUControl1 == 3'b101) ? {{32{1'b0}}, (Sum1[31])} :
+                              {33{1'b0}};
+
+    assign OverFlow1 = ((Sum1[31] ^ A1[31]) & 
+                       (~(ALUControl1[0] ^ B1[31] ^ A1[31])) & 
+                       (~ALUControl1[1]));
+    assign Carry1 = ((~ALUControl1[1]) & Cout1);
+    assign Zero1 = &(~Result1);
+    assign Negative1 = Result1[31];
+
+    // ALU Operation for PE2
+    assign Sum2 = (ALUControl2[0] == 1'b0) ? A2 + B2 : (A2 + ((~B2) + 1));
+    assign {Cout2, Result2} = (ALUControl2 == 3'b000) ? Sum2 :
+                              (ALUControl2 == 3'b001) ? Sum2 :
+                              (ALUControl2 == 3'b010) ? A2 & B2 :
+                              (ALUControl2 == 3'b011) ? A2 | B2 :
+                              (ALUControl2 == 3'b100) ? A2 ^ B2 :
+                              (ALUControl2 == 3'b101) ? {{32{1'b0}}, (Sum2[31])} :
+                              {33{1'b0}};
+
+    assign OverFlow2 = ((Sum2[31] ^ A2[31]) & 
+                       (~(ALUControl2[0] ^ B2[31] ^ A2[31])) & 
+                       (~ALUControl2[1]));
+    assign Carry2 = ((~ALUControl2[1]) & Cout2);
+    assign Zero2 = &(~Result2);
+    assign Negative2 = Result2[31];
+
+endmodule
